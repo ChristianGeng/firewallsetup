@@ -1,8 +1,58 @@
 #!/bin/bash
 #
 # iptables example configuration script
+#
+# Video: https://www.youtube.com/watch?v=qPEA6J9pjG8&t=7s
+#
+# Die Scripts müssen dann noch executable gemacht werden: chmor +x firewall*
+#
+# Testen:
+#
+# Regeln zeigen
+#
+# iptables -nL
+#
+#
+# Stopen der Firewall:
+#
+# firewall-down
+#
+#
+# Neuladen:
+#
+# firewall-reload 
+#
+# Enabling iptables on Startup des Systems
+#
+# systemsctl enable iptables
+#
+# Dann wirder mit dem firewall-Kommando laufen lassen
+#
+# Speichern der Regeln:
+#
+# Arch-Linux:
+# 
+# sudo iptables-save > /etc/iptables/iptables.rules
+#
+# Dann sollten sie nach dem Rebooten wieder da sein
+#
+#
+# Das Persistieren funktioniert unter Ubuntu etwas anders.
+# s. https://www.thomas-krenn.com/de/wiki/Iptables_Firewall_Regeln_dauerhaft_speichern
+#
+# ipV6:
+# ip6tables-save > /etc/iptables/rules.v6
+#
+# ipV4:
+# ip6tables-save > /etc/iptables/rules.v4
+#
+# Restore von Regeln
+# iptables-restore < /etc/iptables/rules.v4
+# ip6tables-restore < /etc/iptables/rules.v6
+#
 
 # Drop ICMP echo-request messages sent to broadcast or multicast addresses
+# =ignore ping requests
 echo 1 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
 
 # Drop source routed packets
@@ -10,7 +60,9 @@ echo 0 > /proc/sys/net/ipv4/conf/all/accept_source_route
  
 # Enable TCP SYN cookie protection from SYN floods
 echo 1 > /proc/sys/net/ipv4/tcp_syncookies
- 
+
+
+# dont accept ping redirect requests - in beide Richtungen
 # Don't accept ICMP redirect messages
 echo 0 > /proc/sys/net/ipv4/conf/all/accept_redirects
  
@@ -31,6 +83,8 @@ echo 1 > /proc/sys/net/ipv4/conf/all/log_martians
 /sbin/iptables -A OUTPUT -o lo -j ACCEPT
  
 # Set default policies
+# Das ist das normale Vorgehen: Aller Traffic wird gedropped
+# Dann macht man "Löcher" rein und erlaubt Manches 
 /sbin/iptables --policy INPUT DROP
 /sbin/iptables --policy OUTPUT DROP
 /sbin/iptables --policy FORWARD DROP
@@ -40,20 +94,25 @@ echo 1 > /proc/sys/net/ipv4/conf/all/log_martians
 /sbin/iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 /sbin/iptables -A OUTPUT -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT
  
-#Ratelimit SSH for attack protection
+# Ratelimit SSH for attack protection
+# Es werden nur 4 ssh requests pro minute erlaubt
+# das wird auch tarpitting genannt
 /sbin/iptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --update --seconds 60 --hitcount 4 -j DROP
 /sbin/iptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --set
 /sbin/iptables -A INPUT -p tcp --dport 22 -m state --state NEW -j ACCEPT
  
 # Allow certain ports to be accessible from the outside
+# 
 /sbin/iptables -A INPUT -p tcp --dport 25565 -m state --state NEW -j ACCEPT  #Minecraft
 /sbin/iptables -A INPUT -p tcp --dport 8123 -m state --state NEW -j ACCEPT   #Dynmap plugin
 
 # Other rules for future use if needed.  Uncomment to activate
+# Die Ports 80 und 443 werden aktiviert 
 # /sbin/iptables -A INPUT -p tcp --dport 80 -m state --state NEW -j ACCEPT    # http
 # /sbin/iptables -A INPUT -p tcp --dport 443 -m state --state NEW -j ACCEPT   # https
 
 # UDP packet rule.  This is just a random udp packet rule as an example only
+# Durch Auskommentieren der folgenden Zeie wird ein UDP Port gewhitelistet
 # /sbin/iptables -A INPUT -p udp --dport 5021 -m state --state NEW -j ACCEPT
 
 # Allow pinging of your server
